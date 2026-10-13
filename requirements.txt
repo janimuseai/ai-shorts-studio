@@ -1,0 +1,4 @@
+gradio>=5.0
+google-generativeai>=0.8
+gtts>=2.5
+firebase-admin>=6.0

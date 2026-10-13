@@ -1,0 +1,7 @@
+__pycache__/
+.env
+studio_local.json
+*.pyc
+*.mp4
+*.mp3
+*.png
