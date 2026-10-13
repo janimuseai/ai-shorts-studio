@@ -1,26 +1,27 @@
 """
 Step 1+2: Gemini writes the script AND generates the scene images.
 
-Uses the free Gemini API (AI Studio). One call for the script (JSON),
-then one Imagen call per scene.
+Uses the free Gemini API (AI Studio) via the current `google-genai` SDK.
+One call for the script (JSON), then one image call per scene.
 """
 import json
 import os
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 SCRIPT_MODELS = [
-    "gemini-3.8-flash",      # current flagship (API-recommended)
-    "gemini-3.5-flash",      # stable fallback
-    "gemini-3-flash-preview", # preview fallback
-    "gemini-flash-latest",   # alias fallback
+    "gemini-3.8-flash",       # current flagship (API-recommended)
+    "gemini-3.5-flash",       # stable fallback
+    "gemini-3-flash-preview",  # preview fallback
+    "gemini-flash-latest",    # alias fallback
 ]
 IMAGE_MODELS = [
-    "gemini-3.1-flash-image", # current image model
-    "gemini-2.5-flash-image", # nano banana fallback
-    "gemini-nano-banana-2.1", # alt fallback
+    "gemini-3.1-flash-image",  # current image model
+    "gemini-2.5-flash-image",  # nano banana fallback
+    "gemini-nano-banana-2.1",  # alt fallback
 ]
 
 _STYLE = (
@@ -49,15 +50,18 @@ def _try_models(models, call):
     last_err = None
     for name in models:
         try:
-            return call(genai.GenerativeModel(name)), name
+            return call(name), name
         except Exception as e:
             last_err = e
     raise RuntimeError(f"All models failed: {models}. Last error: {last_err}")
 
 
 def generate_script(idea: str) -> dict:
-    def call(model):
-        return model.generate_content(_SCRIPT_PROMPT.format(idea=idea.strip()))
+    def call(model_name):
+        return client.models.generate_content(
+            model=model_name,
+            contents=_SCRIPT_PROMPT.format(idea=idea.strip()),
+        )
     resp, used = _try_models(SCRIPT_MODELS, call)
     text = resp.text.strip()
     # strip accidental code fences
@@ -69,19 +73,20 @@ def generate_script(idea: str) -> dict:
 
 
 def generate_scene_image(image_prompt: str, out_path: str) -> str:
-    """Generate one animated scene image with Gemini/Imagen. Returns out_path."""
+    """Generate one animated scene image with Gemini. Returns out_path."""
     full_prompt = f"{_STYLE}. {image_prompt}"
 
-    def call(model):
-        if hasattr(model, "generate_image"):
-            return model.generate_image(full_prompt)
-        return model.generate_content(
-            f"Generate an image: {full_prompt}",
-            generation_config={"response_modalities": ["IMAGE"]},
+    def call(model_name):
+        return client.models.generate_content(
+            model=model_name,
+            contents=f"Generate an image: {full_prompt}",
+            config=types.GenerateContentConfig(
+                response_modalities=["IMAGE"],
+            ),
         )
     resp, used = _try_models(IMAGE_MODELS, call)
     # extract image bytes from the response parts
-    for part in resp.parts:
+    for part in resp.candidates[0].content.parts:
         blob = getattr(part, "inline_data", None)
         if blob and blob.data:
             with open(out_path, "wb") as f:
