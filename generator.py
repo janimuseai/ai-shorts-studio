@@ -11,7 +11,7 @@ import google.generativeai as genai
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-SCRIPT_MODEL = "gemini-2.0-flash"
+SCRIPT_MODEL = "gemini-2.5-flash"
 
 _STYLE = (
     "Animated cartoon illustration, vibrant colors, 9:16 vertical composition, "
@@ -48,7 +48,7 @@ def generate_script(idea: str) -> dict:
 
 def generate_scene_image(image_prompt: str, out_path: str) -> str:
     """Generate one animated scene image with Gemini/Imagen. Returns out_path."""
-    model = genai.GenerativeModel("gemini-2.0-flash-preview-image-generation")
+    model = genai.GenerativeModel("gemini-2.5-flash-image")
     full_prompt = f"{_STYLE}. {image_prompt}"
     resp = model.generate_image(full_prompt) if hasattr(model, "generate_image") \
         else model.generate_content(
